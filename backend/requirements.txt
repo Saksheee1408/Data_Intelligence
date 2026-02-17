@@ -6,3 +6,5 @@ python-multipart
 pydantic
 requests
 beautifulsoup4
+feedparser
+textblob

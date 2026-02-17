@@ -34,23 +34,26 @@
     </section>
 
     <!-- Internal Signals -->
-    <section class="signals-feed" *ngIf="internalSignals().length > 0">
+    <section class="signals-feed" *ngIf="internalSignals()?.length">
       <div class="section-header">
         <h3>Internal Signals <span>Historical patterns detected in your data</span></h3>
-        <span class="count">{{ internalSignals().length }} Alerts</span>
+        <span class="count">{{ internalSignals()?.length || 0 }} Alerts</span>
       </div>
 
       <div class="signals-grid">
         <div class="signal-card internal" *ngFor="let s of internalSignals()"
-          [class.high-severity]="s.severity === 'High'">
+          [class.high-severity]="s.severity >= 0.7 || s.severity === 'High'">
           <div class="card-header">
-            <span class="severity-tag">{{ s.severity }}</span>
-            <span class="signal-type">INTERNAL OP-SCAN</span>
+            <span class="severity-tag">{{ (s.severity >= 0.7 || s.severity === 'High') ? 'HIGH' : 'MEDIUM' }}</span>
+            <span class="signal-type">Internal Signal</span>
           </div>
           <h4>{{ s.signal }}</h4>
-          <p class="metric">{{ s.metric }}</p>
+          <div class="metric-box">
+            <p class="metric-text">Pattern: {{ s.metric }}</p>
+          </div>
           <div class="card-footer">
-            <span class="strength">Weak Signal</span>
+            <span class="strength-label">Severity: {{ s.severity >= 0 ? (s.severity * 100 | number:'1.0-0') : '75'
+              }}%</span>
             <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
           </div>
         </div>
@@ -58,23 +61,25 @@
     </section>
 
     <!-- External Signals -->
-    <section class="signals-feed external-feed" *ngIf="externalSignals().length > 0">
+    <section class="signals-feed external-feed" *ngIf="externalSignals()?.length">
       <div class="section-header">
         <h3>External Sensing <span>Global news & trend detections</span></h3>
-        <span class="count external-count">{{ externalSignals().length }} Signals</span>
+        <span class="count external-count">{{ externalSignals()?.length || 0 }} Signals</span>
       </div>
 
       <div class="signals-grid">
         <div class="signal-card external" *ngFor="let s of externalSignals()"
-          [class.high-severity]="s.severity === 'High'">
+          [class.high-severity]="s.severity === 'High' || s.severity >= 0.7">
           <div class="card-header">
-            <span class="severity-tag">{{ s.severity }}</span>
-            <span class="signal-type">GLOBAL NEWS FEED</span>
+            <span class="severity-tag">{{ (s.severity === 'High' || s.severity >= 0.7) ? 'HIGH' : 'MEDIUM' }}</span>
+            <span class="signal-type">{{ s.type }}</span>
           </div>
           <h4>{{ s.signal }}</h4>
-          <p class="metric">{{ s.metric }}</p>
+          <div class="metric-box">
+            <p class="metric-text">{{ s.metric }}</p>
+          </div>
           <div class="card-footer">
-            <span class="strength">Confidence: {{ (s.confidence * 100) | number:'1.0-0' }}%</span>
+            <span class="strength-label">Confidence: {{ (s.confidence * 100) | number:'1.0-0' }}%</span>
             <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
           </div>
         </div>

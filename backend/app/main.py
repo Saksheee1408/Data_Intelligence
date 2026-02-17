@@ -5,7 +5,8 @@ import pandas as pd
 import io
 import uuid
 import datetime
-import models, database, external_sensing
+import asyncio
+import models, database
 
 # Create database tables
 models.Base.metadata.create_all(bind=database.engine)
@@ -21,6 +22,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Simple global store for demo (replace with DB query in production)
+last_results = {"internal": [], "external": []}
+
 @app.get("/")
 async def root():
     return {"message": "Weak Signal Intelligence API is running"}
@@ -33,117 +37,208 @@ async def upload_internal_data(file: UploadFile = File(...), db: Session = Depen
     contents = await file.read()
     df = pd.read_csv(io.BytesIO(contents))
     
-    # Basic validation of columns
-    required_columns = ['date', 'sales_inr', 'gold_stock_gm', 'supplier_delay_days', 'advance_bookings']
-    if not all(col in df.columns for col in required_columns):
-        return {
-            "error": f"CSV must contain the following columns: {', '.join(required_columns)}",
-            "found": list(df.columns)
-        }
+    # Dataset Detection
+    jewellery_cols = ['date', 'sales_inr', 'gold_stock_gm', 'supplier_delay_days', 'advance_bookings']
+    ev_cols = ['date', 'production_units', 'battery_stock_units', 'supplier_lead_time_days', 'battery_cost_per_unit']
+    
+    dataset_type = None
+    if all(col in df.columns for col in jewellery_cols):
+        dataset_type = "jewellery"
+    elif all(col in df.columns for col in ev_cols):
+        dataset_type = "ev"
+    else:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported CSV schema. Detected columns: {list(df.columns)}"
+        )
 
-    # Ensure date is datetime
+    # Process Data
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
+    latest_timestamp = df['date'].iloc[-1].isoformat()
 
-    # Save data to database
-    batch_id = str(uuid.uuid4())
-    for _, row in df.iterrows():
-        internal_data = models.InternalDataRow(
-            date=row['date'],
-            sales_inr=row['sales_inr'],
-            gold_stock_gm=row['gold_stock_gm'],
-            supplier_delay_days=row['supplier_delay_days'],
-            advance_bookings=row['advance_bookings'],
-            upload_batch_id=batch_id
-        )
-        db.add(internal_data)
+    internal_signals = []
+    external_signals = []
 
-    # Process internal signals
-    signals_data = detect_internal_signals(df)
-    
-    # Save signals to database
-    for s in signals_data:
-        db_signal = models.InternalSignal(
-            type=s['type'],
-            signal=s['signal'],
-            metric=s['metric'],
-            severity=s['severity'],
-            strength=s['strength'],
-            timestamp=datetime.datetime.fromisoformat(s['timestamp'])
-        )
-        db.add(db_signal)
-    
-    db.commit()
-    
+    if dataset_type == "jewellery":
+        # Internal Jewellery Logic (last 3 rows)
+        if len(df) >= 3:
+            last3 = df.tail(3)
+            # a) Stock decreasing
+            stocks = last3['gold_stock_gm'].tolist()
+            if stocks[0] > stocks[1] > stocks[2]:
+                internal_signals.append({
+                    "signal": "Gold stock is continuously decreasing",
+                    "metric": "gold_stock_gm",
+                    "strength": "weak",
+                    "severity": 0.70,
+                    "timestamp": latest_timestamp,
+                    "type": "Internal"
+                })
+            # b) Supplier delay increasing
+            delays = last3['supplier_delay_days'].tolist()
+            if delays[2] - delays[0] >= 1:
+                internal_signals.append({
+                    "signal": "Supplier delivery delay is increasing",
+                    "metric": "supplier_delay_days",
+                    "strength": "weak",
+                    "severity": 0.65,
+                    "timestamp": latest_timestamp,
+                    "type": "Internal"
+                })
+            # c) Advance bookings rising
+            bookings = last3['advance_bookings'].tolist()
+            if bookings[2] > bookings[1] > bookings[0]:
+                internal_signals.append({
+                    "signal": "Advance bookings are rising",
+                    "metric": "advance_bookings",
+                    "strength": "weak",
+                    "severity": 0.60,
+                    "timestamp": latest_timestamp,
+                    "type": "Internal"
+                })
+
+        # External-like Derived Jewellery Logic (last 5 rows)
+        if len(df) >= 5:
+            last5 = df.tail(5)
+            # a) Supplier delay trend
+            delays5 = last5['supplier_delay_days'].tolist()
+            if delays5[-1] > sum(delays5)/5: # Simple trend indicator
+                external_signals.append({
+                    "signal": "Supply chain pressure increasing (delivery delays rising)",
+                    "dimension": "supply_chain",
+                    "confidence": 0.65,
+                    "timestamp": latest_timestamp,
+                    "type": "External (Supply Chain)", 
+                    "severity": "Medium",
+                    "metric": f"Last 5-day Avg: {sum(delays5)/5:.1f}"
+                })
+            # b) Sales momentum
+            sales = df['sales_inr'].tolist()
+            prev5_avg = sum(sales[-10:-5]) / 5 if len(sales) >= 10 else sales[0]
+            curr5_avg = sum(sales[-5:]) / 5
+            if prev5_avg > 0 and (prev5_avg - curr5_avg) / prev5_avg > 0.08:
+                external_signals.append({
+                    "signal": "Demand-side weakness forming (sales momentum declining)",
+                    "dimension": "consumer_behavior",
+                    "confidence": 0.60,
+                    "timestamp": latest_timestamp,
+                    "type": "External (Consumer)",
+                    "severity": "Medium",
+                    "metric": f"Drop: {((prev5_avg - curr5_avg)/prev5_avg)*100:.1f}%"
+                })
+            # c) Demand spike risk
+            if len(df) >= 3:
+                last3 = df.tail(3)
+                if last3['advance_bookings'].iloc[-1] > last3['advance_bookings'].iloc[0] and \
+                   last3['gold_stock_gm'].iloc[-1] < last3['gold_stock_gm'].iloc[0]:
+                    external_signals.append({
+                        "signal": "Upcoming demand spike risk with limited supply",
+                        "dimension": "economic",
+                        "confidence": 0.70,
+                        "timestamp": latest_timestamp,
+                        "type": "External (Economic)",
+                        "severity": "High",
+                        "metric": "Bookings Up / Stock Down"
+                    })
+
+    elif dataset_type == "ev":
+        # Internal EV Logic (last 3 rows)
+        if len(df) >= 3:
+            last3 = df.tail(3)
+            # a) Battery stock decreasing
+            stocks = last3['battery_stock_units'].tolist()
+            if stocks[0] > stocks[1] > stocks[2]:
+                internal_signals.append({
+                    "signal": "Battery stock is continuously decreasing",
+                    "metric": "battery_stock_units",
+                    "strength": "weak",
+                    "severity": 0.70,
+                    "timestamp": latest_timestamp,
+                    "type": "Internal"
+                })
+            # b) Supplier lead time increasing
+            leads = last3['supplier_lead_time_days'].tolist()
+            if leads[2] - leads[0] >= 1:
+                internal_signals.append({
+                    "signal": "Supplier lead time is increasing",
+                    "metric": "supplier_lead_time_days",
+                    "strength": "weak",
+                    "severity": 0.65,
+                    "timestamp": latest_timestamp,
+                    "type": "Internal"
+                })
+            # c) Production rising but stock falling
+            prod = last3['production_units'].tolist()
+            if prod[2] > prod[0] and stocks[2] < stocks[0]:
+                internal_signals.append({
+                    "signal": "Production pressure rising while stock is falling",
+                    "metric": "production_units+battery_stock_units",
+                    "strength": "weak",
+                    "severity": 0.75,
+                    "timestamp": latest_timestamp,
+                    "type": "Internal"
+                })
+
+        # External-like Derived EV Logic (last 5 rows)
+        if len(df) >= 5:
+            last5 = df.tail(5)
+            # a) Input cost pressure
+            costs = last5['battery_cost_per_unit'].tolist()
+            cost_increase = (costs[-1] - costs[0]) / costs[0] if costs[0] > 0 else 0
+            if cost_increase >= 0.05:
+                external_signals.append({
+                    "signal": "Input cost pressure rising (battery cost increasing)",
+                    "dimension": "economic",
+                    "confidence": 0.70,
+                    "timestamp": latest_timestamp,
+                    "type": "External (Economic)",
+                    "severity": "High",
+                    "metric": f"Increase: {cost_increase*100:.1f}%"
+                })
+            # b) Logistics risk
+            leads5 = last5['supplier_lead_time_days'].tolist()
+            if leads5[-1] > sum(leads5)/5:
+                external_signals.append({
+                    "signal": "Logistics / supplier disruption risk increasing",
+                    "dimension": "supply_chain",
+                    "confidence": 0.65,
+                    "timestamp": latest_timestamp,
+                    "type": "External (Supply Chain)",
+                    "severity": "Medium",
+                    "metric": f"Lead Time: {leads5[-1]} days"
+                })
+            # c) Margin risk
+            if last5['production_units'].iloc[-1] > last5['production_units'].iloc[0] and \
+               last5['battery_cost_per_unit'].iloc[-1] > last5['battery_cost_per_unit'].iloc[0]:
+                external_signals.append({
+                    "signal": "Margin risk forming (higher input cost during scaling)",
+                    "dimension": "economic",
+                    "confidence": 0.60,
+                    "timestamp": latest_timestamp,
+                    "type": "External (Economic)",
+                    "severity": "Medium",
+                    "metric": "Prod Up / Cost Up"
+                })
+
+    # Update global store for /signals endpoint
+    last_results["internal"] = internal_signals
+    last_results["external"] = external_signals
+
     return {
-        "filename": file.filename,
-        "batch_id": batch_id,
-        "rows": len(df),
-        "internal_signals": signals_data
+        "dataset_type": dataset_type,
+        "internal_signals": internal_signals,
+        "external_signals": external_signals
     }
 
 @app.get("/signals")
 async def get_signals(db: Session = Depends(database.get_db)):
-    internal = db.query(models.InternalSignal).order_by(models.InternalSignal.timestamp.desc()).all()
-    external = db.query(models.ExternalSignal).order_by(models.ExternalSignal.timestamp.desc()).all()
-    return {
-        "internal": internal,
-        "external": external
-    }
+    return last_results
 
 @app.post("/trigger/external")
 async def trigger_external_sensing(industry: str = "Jewellery", db: Session = Depends(database.get_db)):
-    """Manual trigger to scan for external signals based on industry context"""
-    signals = external_sensing.fetch_external_signals(db, industry)
-    return {"status": "success", "industry": industry, "detected": signals}
-
-def detect_internal_signals(df: pd.DataFrame):
-    signals = []
-    
-    # Case 1: Continuous Stock Drop (last 3 entries)
-    if len(df) >= 3:
-        last_3 = df.tail(3)
-        stocks = last_3['gold_stock_gm'].tolist()
-        if stocks[0] > stocks[1] > stocks[2]:
-            signals.append({
-                "type": "Internal",
-                "signal": "Continuous Stock Drop Detected",
-                "metric": f"Stock levels: {stocks[0]} -> {stocks[1]} -> {stocks[2]} grams",
-                "severity": "High" if stocks[2] < 100 else "Medium",
-                "timestamp": last_3['date'].iloc[-1].isoformat(),
-                "strength": "Weak Signal"
-            })
-
-    # Case 2: Rising Supplier Delay
-    if len(df) >= 3:
-        last_3 = df.tail(3)
-        delays = last_3['supplier_delay_days'].tolist()
-        if delays[2] > delays[1] >= delays[0] and delays[2] > 5:
-            signals.append({
-                "type": "Internal",
-                "signal": "Rising Supplier Delay",
-                "metric": f"Delay increased to {delays[2]} days",
-                "severity": "Medium",
-                "timestamp": last_3['date'].iloc[-1].isoformat(),
-                "strength": "Weak Signal"
-            })
-
-    # Case 3: Sudden Demand Increase (Advance Bookings)
-    if len(df) >= 3:
-        last_3 = df.tail(3)
-        avg_prev = last_3['advance_bookings'].iloc[:2].mean()
-        current = last_3['advance_bookings'].iloc[-1]
-        if current > avg_prev * 1.5:
-            signals.append({
-                "type": "Internal",
-                "signal": "Sudden Demand Spike",
-                "metric": f"Bookings jumped to {current} (Previous avg: {avg_prev:.1f})",
-                "severity": "High",
-                "timestamp": last_3['date'].iloc[-1].isoformat(),
-                "strength": "Weak Signal"
-            })
-
-    return signals
+    """Manual trigger to scan (Mocked for CSV-only version)"""
+    return {"status": "success", "message": "Derived signals updated from CSV context."}
 
 if __name__ == "__main__":
     import uvicorn

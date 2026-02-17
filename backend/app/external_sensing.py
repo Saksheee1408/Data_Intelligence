@@ -1,58 +1,89 @@
-import requests
-from bs4 import BeautifulSoup
+import feedparser
+from textblob import TextBlob
 from sqlalchemy.orm import Session
 import models
 import datetime
-import random
+import urllib.parse
 
 def fetch_external_signals(db: Session, industry: str = "Jewellery"):
     """
-    Fetches external context (News/Trends) and detects weak signals.
-    In a real app, this would use SerpAPI or specialized news APIs.
-    For this MVP, we simulate targeted sensing based on industry keywords.
+    Fetches real-time external signals using Google News RSS and performs sentiment analysis.
     """
     
-    # Industry-specific keywords for targeted sensing
-    keywords = {
-        "Jewellery": ["gold prices", "diamond supply chain", "luxury market trends", "consumer gold demand"],
-        "Retail": ["consumer spending", "retail inflation", "e-commerce trends"],
-        "Tech": ["semiconductor shortage", "AI policy", "startup funding"]
+    # Industry-specific topics for targeted sensing
+    topics = {
+        "Jewellery": ["Gold Price", "Jewellery Market", "Diamond Supply Chain", "Luxury Retail Trends", "Global Inflation"],
+        "Retail": ["Consumer Spending", "Retail Inflation", "E-commerce Trends India"],
+        "Tech": ["Semiconductor Shortage", "AI Policy Europe", "Venture Capital Tech"]
     }
     
-    active_keywords = keywords.get(industry, keywords["Jewellery"])
+    active_topics = topics.get(industry, topics["Jewellery"])
     detected_external_signals = []
 
-    # Simulation of targeted news sensing
-    # In a full live system, this would call a real News API
-    headlines = [
-        f"Central banks increase {active_keywords[0]} reserves",
-        f"New regulations in {industry} sector globally",
-        f"Logistics disruptions impact {active_keywords[1]}",
-        f"Shifting patterns in {active_keywords[2]}",
-        f"Currency volatility affects {industry} imports"
-    ]
+    # Category Mapping Keywords
+    categories = {
+        "Economic": ["Inflation", "Rates", "Price", "Recession", "Economy", "Currency"],
+        "Regulatory": ["Regulation", "Tax", "Ban", "Compliance", "Law", "Policy"],
+        "Consumer": ["Consumer", "Spending", "Trend", "Demand", "Retail"],
+        "Supply Chain": ["Supply", "Shortage", "Logistics", "Shipping", "Supplier", "Inventory"],
+        "Technology": ["AI", "Technology", "Innovation", "Digital", "Automation"]
+    }
 
-    for title in headlines:
-        # Simple logic: Every 'news' item is analyzed as a potential weak signal
-        # Real logic would use NLP/LLM to score confidence
-        severity = random.choice(["Low", "Medium", "High"])
+    for topic in active_topics:
+        encoded_topic = urllib.parse.quote(topic)
+        rss_url = f"https://news.google.com/rss/search?q={encoded_topic}&hl=en-IN&gl=IN&ceid=IN:en"
         
-        signal = models.ExternalSignal(
-            type="External",
-            source="Global News Feed",
-            signal=title,
-            metric=f"Sentiment: {random.choice(['Stable', 'Nervous', 'Bullish'])}",
-            severity=severity,
-            confidence=random.uniform(0.6, 0.9),
-            timestamp=datetime.datetime.utcnow()
-        )
-        db.add(signal)
-        detected_external_signals.append({
-            "type": "External",
-            "signal": title,
-            "severity": severity,
-            "timestamp": signal.timestamp.isoformat()
-        })
+        feed = feedparser.parse(rss_url)
+        
+        # Take the top 3-5 entries per topic to avoid noise
+        for entry in feed.entries[:5]:
+            headline = entry.title
+            source = entry.source.get('title', 'Unknown Source')
+            
+            # 1. Deduplication: Check if this headline exists in the last 24 hours
+            existing = db.query(models.ExternalSignal).filter(
+                models.ExternalSignal.signal == headline,
+                models.ExternalSignal.timestamp >= (datetime.datetime.utcnow() - datetime.timedelta(days=1))
+            ).first()
+            
+            if existing:
+                continue
+
+            # 2. Sentiment Analysis
+            analysis = TextBlob(headline)
+            sentiment_score = analysis.sentiment.polarity # Range [-1, 1]
+            
+            # Determine Severity based on sentiment and keyword presence
+            severity = "Low"
+            if sentiment_score < -0.1:
+                severity = "High" if sentiment_score < -0.4 else "Medium"
+            elif sentiment_score > 0.4:
+                severity = "Medium" # Opportunities can also be significant signals
+
+            # 3. Classification
+            signal_type = "External"
+            for cat, keywords in categories.items():
+                if any(kw.lower() in headline.lower() for kw in keywords):
+                    signal_type = f"External ({cat})"
+                    break
+
+            # 4. Save to DB
+            signal = models.ExternalSignal(
+                type=signal_type,
+                source=source,
+                signal=headline,
+                metric=f"Sentiment: {sentiment_score:.2f} ({'Negative' if sentiment_score < 0 else 'Positive' if sentiment_score > 0 else 'Neutral'})",
+                severity=severity,
+                confidence=0.85, # Base confidence for RSS verified news
+                timestamp=datetime.datetime.utcnow()
+            )
+            db.add(signal)
+            detected_external_signals.append({
+                "type": signal_type,
+                "signal": headline,
+                "severity": severity,
+                "timestamp": signal.timestamp.isoformat()
+            })
 
     db.commit()
     return detected_external_signals

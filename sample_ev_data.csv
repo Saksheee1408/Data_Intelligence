@@ -1,0 +1,6 @@
+date,production_units,battery_stock_units,supplier_lead_time_days,battery_cost_per_unit
+2024-01-01,100,50,10,200
+2024-01-02,110,45,10,205
+2024-01-03,120,40,11,210
+2024-01-04,130,35,11,220
+2024-01-05,140,30,12,235

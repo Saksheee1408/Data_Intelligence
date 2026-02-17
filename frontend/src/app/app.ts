@@ -35,7 +35,8 @@ export class App {
 
     this.http.post<any>('http://localhost:8000/upload/internal', formData).subscribe({
       next: (response: any) => {
-        this.internalSignals.set(response.internal_signals);
+        this.internalSignals.set(response.internal_signals || []);
+        this.externalSignals.set(response.external_signals || []);
         this.uploading.set(false);
       },
       error: (err: any) => {
@@ -63,8 +64,8 @@ export class App {
   loadAllSignals() {
     this.http.get<any>('http://localhost:8000/signals').subscribe({
       next: (response: any) => {
-        this.internalSignals.set(response.internal);
-        this.externalSignals.set(response.external);
+        this.internalSignals.set(response.internal || []);
+        this.externalSignals.set(response.external || []);
       },
       error: (err: any) => console.error('Failed to load signals', err)
     });
