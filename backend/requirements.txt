@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+sqlalchemy
+pandas
+python-multipart
+pydantic
+requests
+beautifulsoup4
