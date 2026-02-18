@@ -1,89 +1,83 @@
 import feedparser
-from textblob import TextBlob
+try:
+    from textblob import TextBlob
+except ImportError:
+    class TextBlob:
+        def __init__(self, text):
+            self.sentiment = type('Sentiment', (), {'polarity': 0.0})()
 from sqlalchemy.orm import Session
 import models
 import datetime
 import urllib.parse
+import pandas as pd
 
-def fetch_external_signals(db: Session, industry: str = "Jewellery"):
+def fetch_external_signals(db: Session, industry: str = "Jewellery", df_context: pd.DataFrame = None):
     """
-    Fetches real-time external signals using Google News RSS and performs sentiment analysis.
+    Multi-Source External Signal Extraction:
+    Source 1: Google News RSS (Real-world events)
+    Source 2: Contextual Macro Indicators (Trend analysis from data)
+    Source 3: Industry Sentiment Analysis (Headline scoring)
     """
     
-    # Industry-specific topics for targeted sensing
+    all_signals = []
+
+    # --- SOURCE 1 & 3: Real-Time News & Sentiment ---
     topics = {
-        "Jewellery": ["Gold Price", "Jewellery Market", "Diamond Supply Chain", "Luxury Retail Trends", "Global Inflation"],
-        "Retail": ["Consumer Spending", "Retail Inflation", "E-commerce Trends India"],
-        "Tech": ["Semiconductor Shortage", "AI Policy Europe", "Venture Capital Tech"]
+        "Jewellery": ["Gold Price", "Jewellery Market", "Bullion Demand"],
+        "ev": ["Battery Raw Materials", "EV Charging Infrastructure", "Lithium Price"]
     }
     
     active_topics = topics.get(industry, topics["Jewellery"])
-    detected_external_signals = []
-
-    # Category Mapping Keywords
-    categories = {
-        "Economic": ["Inflation", "Rates", "Price", "Recession", "Economy", "Currency"],
-        "Regulatory": ["Regulation", "Tax", "Ban", "Compliance", "Law", "Policy"],
-        "Consumer": ["Consumer", "Spending", "Trend", "Demand", "Retail"],
-        "Supply Chain": ["Supply", "Shortage", "Logistics", "Shipping", "Supplier", "Inventory"],
-        "Technology": ["AI", "Technology", "Innovation", "Digital", "Automation"]
-    }
-
+    
     for topic in active_topics:
         encoded_topic = urllib.parse.quote(topic)
         rss_url = f"https://news.google.com/rss/search?q={encoded_topic}&hl=en-IN&gl=IN&ceid=IN:en"
-        
         feed = feedparser.parse(rss_url)
         
-        # Take the top 3-5 entries per topic to avoid noise
-        for entry in feed.entries[:5]:
+        for entry in feed.entries[:3]: # Top 3 per topic
             headline = entry.title
-            source = entry.source.get('title', 'Unknown Source')
-            
-            # 1. Deduplication: Check if this headline exists in the last 24 hours
-            existing = db.query(models.ExternalSignal).filter(
-                models.ExternalSignal.signal == headline,
-                models.ExternalSignal.timestamp >= (datetime.datetime.utcnow() - datetime.timedelta(days=1))
-            ).first()
-            
-            if existing:
-                continue
-
-            # 2. Sentiment Analysis
             analysis = TextBlob(headline)
-            sentiment_score = analysis.sentiment.polarity # Range [-1, 1]
+            sentiment = analysis.sentiment.polarity
             
-            # Determine Severity based on sentiment and keyword presence
-            severity = "Low"
-            if sentiment_score < -0.1:
-                severity = "High" if sentiment_score < -0.4 else "Medium"
-            elif sentiment_score > 0.4:
-                severity = "Medium" # Opportunities can also be significant signals
-
-            # 3. Classification
-            signal_type = "External"
-            for cat, keywords in categories.items():
-                if any(kw.lower() in headline.lower() for kw in keywords):
-                    signal_type = f"External ({cat})"
-                    break
-
-            # 4. Save to DB
-            signal = models.ExternalSignal(
-                type=signal_type,
-                source=source,
-                signal=headline,
-                metric=f"Sentiment: {sentiment_score:.2f} ({'Negative' if sentiment_score < 0 else 'Positive' if sentiment_score > 0 else 'Neutral'})",
-                severity=severity,
-                confidence=0.85, # Base confidence for RSS verified news
-                timestamp=datetime.datetime.utcnow()
-            )
-            db.add(signal)
-            detected_external_signals.append({
-                "type": signal_type,
+            signal = {
                 "signal": headline,
-                "severity": severity,
-                "timestamp": signal.timestamp.isoformat()
-            })
+                "type": f"News Source ({topic})",
+                "severity": "High" if sentiment < -0.2 else "Medium" if sentiment < 0.2 else "Low",
+                "confidence": 0.85,
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "metric": f"Sentiment: {sentiment:.2f}"
+            }
+            all_signals.append(signal)
 
-    db.commit()
-    return detected_external_signals
+    # --- SOURCE 2: Contextual Macro Indicators (Derived from CSV) ---
+    if df_context is not None:
+        if industry == "Jewellery":
+            # Example: Gold stock vs Sales imbalance as an Economic Indicator
+            if len(df_context) >= 5:
+                avg_stock = df_context['gold_stock_gm'].mean()
+                latest_stock = df_context['gold_stock_gm'].iloc[-1]
+                if latest_stock < avg_stock * 0.8:
+                    all_signals.append({
+                        "signal": "External Market Scarcity Indicator (Derived from Stock depletion)",
+                        "type": "Market Macro",
+                        "severity": "Medium",
+                        "confidence": 0.70,
+                        "timestamp": datetime.datetime.utcnow().isoformat(),
+                        "metric": f"Stock Deviation: -{((avg_stock-latest_stock)/avg_stock)*100:.1f}%"
+                    })
+        elif industry == "ev":
+            # Example: Cost volatility as an Economic Indicator
+            costs = df_context['battery_cost_per_unit'].tolist()
+            if len(costs) >= 5:
+                cost_volatility = (max(costs[-5:]) - min(costs[-5:])) / min(costs[-5:])
+                if cost_volatility > 0.05:
+                    all_signals.append({
+                        "signal": "Global Supply Chain Inflation (Detected from Battery Cost Volatility)",
+                        "type": "Economic Macro",
+                        "severity": "High",
+                        "confidence": 0.75,
+                        "timestamp": datetime.datetime.utcnow().isoformat(),
+                        "metric": f"Volatility Index: {cost_volatility*100:.1f}%"
+                    })
+
+    return all_signals

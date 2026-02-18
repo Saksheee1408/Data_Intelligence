@@ -6,7 +6,8 @@ import io
 import uuid
 import datetime
 import asyncio
-import models, database
+import math
+import models, database, external_sensing
 
 # Create database tables
 models.Base.metadata.create_all(bind=database.engine)
@@ -23,7 +24,125 @@ app.add_middleware(
 )
 
 # Simple global store for demo (replace with DB query in production)
-last_results = {"internal": [], "external": []}
+last_results = {"internal": [], "external": [], "future_impact": {}}
+
+def compute_future_impact(df, internal_signals, external_signals):
+    # Detect Schema
+    jewellery_cols = ['gold_stock_gm', 'supplier_delay_days', 'advance_bookings', 'sales_inr']
+    
+    if all(col in df.columns for col in jewellery_cols):
+        cols = {'stock': 'gold_stock_gm', 'delay': 'supplier_delay_days', 'bookings': 'advance_bookings', 'sales': 'sales_inr'}
+        is_jewellery = True
+    else:
+        cols = {'stock': 'battery_stock_units', 'delay': 'supplier_lead_time_days', 'bookings': None, 'sales': 'production_units'}
+        is_jewellery = False
+
+    df_recent = df.tail(7)
+    
+    def get_trend(col_name):
+        if col_name is None or col_name not in df.columns: return 0
+        series = df_recent[col_name]
+        if len(series) < 2: return 0
+        return (series.iloc[-1] - series.iloc[0]) / (len(series) - 1)
+
+    trends = {
+        'stock': get_trend(cols['stock']),
+        'delay': get_trend(cols['delay']),
+        'bookings': get_trend(cols['bookings']),
+        'sales': get_trend(cols['sales'])
+    }
+
+    def get_historical_trends(col_name):
+        if col_name is None or col_name not in df.columns: return []
+        h_trends = []
+        for i in range(len(df) - 6):
+            window = df.iloc[i:i+7][col_name]
+            h_trends.append((window.iloc[-1] - window.iloc[0]) / 6)
+        return h_trends
+
+    def normalize_value(val, history, reverse=False):
+        if not history: return 0.5
+        h = pd.Series(history)
+        median = h.median()
+        mad = (h - median).abs().median()
+        z = (val - median) / (mad + 1e-9)
+        if reverse: z = -z
+        return 1 / (1 + math.exp(-z))
+
+    stock_risk = normalize_value(trends['stock'], get_historical_trends(cols['stock']), reverse=True)
+    delay_risk = normalize_value(trends['delay'], get_historical_trends(cols['delay']))
+    
+    if is_jewellery:
+        bookings_risk = normalize_value(trends['bookings'], get_historical_trends(cols['bookings']))
+        sales_risk = normalize_value(trends['sales'], get_historical_trends(cols['sales']), reverse=True)
+        w_stock, w_delay, w_bookings, w_sales = 0.35, 0.25, 0.25, 0.15
+    else:
+        bookings_risk = 0
+        sales_risk = normalize_value(trends['sales'], get_historical_trends(cols['sales'])) # Prod up is pressure
+        w_stock, w_delay, w_bookings, w_sales = 0.35, 0.25, 0, 0.15
+        total_w = w_stock + w_delay + w_sales
+        w_stock /= total_w
+        w_delay /= total_w
+        w_sales /= total_w
+
+    risk_score = w_stock*stock_risk + w_delay*delay_risk + w_bookings*bookings_risk + w_sales*sales_risk
+    probability_percent = round(100 * max(0, min(0.95, risk_score)), 0)
+
+    if probability_percent < 35: severity_level = "LOW"
+    elif probability_percent <= 55: severity_level = "MEDIUM"
+    elif probability_percent <= 75: severity_level = "HIGH"
+    else: severity_level = "CRITICAL"
+
+    urgency = max(stock_risk, delay_risk)
+    days_min = round(14 - 10*urgency)
+    days_min = max(3, min(21, days_min))
+    days_max = days_min + 7
+    time_window_days = f"{days_min}-{days_max} days"
+
+    if not is_jewellery and 'battery_cost_per_unit' in df.columns:
+        last_cost = df['battery_cost_per_unit'].iloc[-1]
+        first_cost = df.tail(7)['battery_cost_per_unit'].iloc[0]
+        procurement_cost_rise_pct = round((last_cost - first_cost) / first_cost * 100, 1) if first_cost != 0 else 0
+    else:
+        procurement_cost_rise_pct = round(2 + 8*(0.5*delay_risk + 0.5*stock_risk), 1)
+    
+    margin_risk_pct = round(procurement_cost_rise_pct * 0.6, 1)
+    
+    demand_pressure = "NEUTRAL"
+    if is_jewellery:
+        if trends['bookings'] > 0 and bookings_risk > 0.6: demand_pressure = "UP"
+        elif trends['sales'] < 0 and sales_risk > 0.6: demand_pressure = "DOWN"
+    else: # EV
+        if trends['sales'] > 0 and sales_risk > 0.6: demand_pressure = "UP"
+    
+    actions = []
+    if stock_risk > 0.6: actions.append("Increase buffer inventory / reorder earlier")
+    if delay_risk > 0.6: actions.append("Lock supplier slots / confirm delivery schedule")
+    if demand_pressure == "UP": actions.append("Prepare for demand surge (stock + staffing)")
+    if severity_level in ["HIGH", "CRITICAL"]: actions.append("Pause non-essential spending until stability improves")
+
+    drivers = []
+    if stock_risk > 0.5: drivers.append("Inventory depletion")
+    if delay_risk > 0.5: drivers.append("Supply chain delay")
+    if bookings_risk > 0.5: drivers.append("Booking surge")
+    if sales_risk > 0.5: drivers.append("Sales weakness" if is_jewellery else "Production pressure")
+    
+    if not drivers: drivers = ["Market trends"]
+    
+    impact_summary = f"Based on recent trends, risk is {severity_level} with {int(probability_percent)}% probability within {time_window_days}. Key drivers: {', '.join(drivers[:2])}. Suggested actions: {', '.join(actions[:2])}."
+
+    return {
+        "probability_percent": int(probability_percent),
+        "severity_level": severity_level,
+        "time_window_days": time_window_days,
+        "impact_summary": impact_summary,
+        "impact_breakdown": {
+            "procurement_cost_rise_pct": float(procurement_cost_rise_pct),
+            "margin_risk_pct": float(margin_risk_pct),
+            "demand_pressure": demand_pressure
+        },
+        "recommended_actions": actions
+    }
 
 @app.get("/")
 async def root():
@@ -58,7 +177,6 @@ async def upload_internal_data(file: UploadFile = File(...), db: Session = Depen
     latest_timestamp = df['date'].iloc[-1].isoformat()
 
     internal_signals = []
-    external_signals = []
 
     if dataset_type == "jewellery":
         # Internal Jewellery Logic (last 3 rows)
@@ -98,50 +216,6 @@ async def upload_internal_data(file: UploadFile = File(...), db: Session = Depen
                     "type": "Internal"
                 })
 
-        # External-like Derived Jewellery Logic (last 5 rows)
-        if len(df) >= 5:
-            last5 = df.tail(5)
-            # a) Supplier delay trend
-            delays5 = last5['supplier_delay_days'].tolist()
-            if delays5[-1] > sum(delays5)/5: # Simple trend indicator
-                external_signals.append({
-                    "signal": "Supply chain pressure increasing (delivery delays rising)",
-                    "dimension": "supply_chain",
-                    "confidence": 0.65,
-                    "timestamp": latest_timestamp,
-                    "type": "External (Supply Chain)", 
-                    "severity": "Medium",
-                    "metric": f"Last 5-day Avg: {sum(delays5)/5:.1f}"
-                })
-            # b) Sales momentum
-            sales = df['sales_inr'].tolist()
-            prev5_avg = sum(sales[-10:-5]) / 5 if len(sales) >= 10 else sales[0]
-            curr5_avg = sum(sales[-5:]) / 5
-            if prev5_avg > 0 and (prev5_avg - curr5_avg) / prev5_avg > 0.08:
-                external_signals.append({
-                    "signal": "Demand-side weakness forming (sales momentum declining)",
-                    "dimension": "consumer_behavior",
-                    "confidence": 0.60,
-                    "timestamp": latest_timestamp,
-                    "type": "External (Consumer)",
-                    "severity": "Medium",
-                    "metric": f"Drop: {((prev5_avg - curr5_avg)/prev5_avg)*100:.1f}%"
-                })
-            # c) Demand spike risk
-            if len(df) >= 3:
-                last3 = df.tail(3)
-                if last3['advance_bookings'].iloc[-1] > last3['advance_bookings'].iloc[0] and \
-                   last3['gold_stock_gm'].iloc[-1] < last3['gold_stock_gm'].iloc[0]:
-                    external_signals.append({
-                        "signal": "Upcoming demand spike risk with limited supply",
-                        "dimension": "economic",
-                        "confidence": 0.70,
-                        "timestamp": latest_timestamp,
-                        "type": "External (Economic)",
-                        "severity": "High",
-                        "metric": "Bookings Up / Stock Down"
-                    })
-
     elif dataset_type == "ev":
         # Internal EV Logic (last 3 rows)
         if len(df) >= 3:
@@ -180,55 +254,22 @@ async def upload_internal_data(file: UploadFile = File(...), db: Session = Depen
                     "type": "Internal"
                 })
 
-        # External-like Derived EV Logic (last 5 rows)
-        if len(df) >= 5:
-            last5 = df.tail(5)
-            # a) Input cost pressure
-            costs = last5['battery_cost_per_unit'].tolist()
-            cost_increase = (costs[-1] - costs[0]) / costs[0] if costs[0] > 0 else 0
-            if cost_increase >= 0.05:
-                external_signals.append({
-                    "signal": "Input cost pressure rising (battery cost increasing)",
-                    "dimension": "economic",
-                    "confidence": 0.70,
-                    "timestamp": latest_timestamp,
-                    "type": "External (Economic)",
-                    "severity": "High",
-                    "metric": f"Increase: {cost_increase*100:.1f}%"
-                })
-            # b) Logistics risk
-            leads5 = last5['supplier_lead_time_days'].tolist()
-            if leads5[-1] > sum(leads5)/5:
-                external_signals.append({
-                    "signal": "Logistics / supplier disruption risk increasing",
-                    "dimension": "supply_chain",
-                    "confidence": 0.65,
-                    "timestamp": latest_timestamp,
-                    "type": "External (Supply Chain)",
-                    "severity": "Medium",
-                    "metric": f"Lead Time: {leads5[-1]} days"
-                })
-            # c) Margin risk
-            if last5['production_units'].iloc[-1] > last5['production_units'].iloc[0] and \
-               last5['battery_cost_per_unit'].iloc[-1] > last5['battery_cost_per_unit'].iloc[0]:
-                external_signals.append({
-                    "signal": "Margin risk forming (higher input cost during scaling)",
-                    "dimension": "economic",
-                    "confidence": 0.60,
-                    "timestamp": latest_timestamp,
-                    "type": "External (Economic)",
-                    "severity": "Medium",
-                    "metric": "Prod Up / Cost Up"
-                })
+    # Multi-Source External Extraction
+    external_signals = external_sensing.fetch_external_signals(db, industry=dataset_type, df_context=df)
+
+    # Calculate Future Impact
+    future_impact = compute_future_impact(df, internal_signals, external_signals)
 
     # Update global store for /signals endpoint
     last_results["internal"] = internal_signals
     last_results["external"] = external_signals
+    last_results["future_impact"] = future_impact
 
     return {
         "dataset_type": dataset_type,
         "internal_signals": internal_signals,
-        "external_signals": external_signals
+        "external_signals": external_signals,
+        "future_impact": future_impact
     }
 
 @app.get("/signals")
@@ -237,8 +278,10 @@ async def get_signals(db: Session = Depends(database.get_db)):
 
 @app.post("/trigger/external")
 async def trigger_external_sensing(industry: str = "Jewellery", db: Session = Depends(database.get_db)):
-    """Manual trigger to scan (Mocked for CSV-only version)"""
-    return {"status": "success", "message": "Derived signals updated from CSV context."}
+    """Manual trigger to scan real-time news and macro sources"""
+    news_signals = external_sensing.fetch_external_signals(db, industry=industry)
+    last_results["external"] = news_signals
+    return {"status": "success", "message": f"Fetched {len(news_signals)} real-time signals."}
 
 if __name__ == "__main__":
     import uvicorn
