@@ -33,6 +33,25 @@
       </div>
     </section>
 
+    <!-- Executive Risk Brief -->
+    <section class="hero-impact" *ngIf="futureBusinessImpact() as impact">
+      <div class="risk-brief">
+        <div class="risk-header">
+          <span class="risk-badge" [class.critical]="impact.risk_level === 'CRITICAL'">
+            {{ impact.risk_level }} RISK DETECTED
+          </span>
+          <div class="risk-probability">
+            <strong>{{ impact.probability_percent }}%</strong> Probability
+          </div>
+          <div class="impact-window">
+            Window: <strong>{{ impact.time_to_impact_days.min_days }}-{{ impact.time_to_impact_days.max_days }}
+              Days</strong>
+          </div>
+        </div>
+        <p class="impact-summary">{{ impact.explanation.one_line }}</p>
+      </div>
+    </section>
+
     <!-- Internal Signals -->
     <section class="signals-feed" *ngIf="internalSignals()?.length">
       <div class="section-header">
@@ -81,6 +100,52 @@
           <div class="card-footer">
             <span class="strength-label">Confidence: {{ (s.confidence * 100) | number:'1.0-0' }}%</span>
             <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Causal Intelligence Summary -->
+    <section class="causal-chain" *ngIf="whyChain() as chain">
+      <div class="section-header">
+        <h3>Causal Intelligence <span>AI-distilled root cause identification</span></h3>
+      </div>
+      <div class="summary-container">
+        <div class="ai-burst">✨</div>
+        <p class="ai-distilled-summary">{{ chain.root_cause_summary }}</p>
+      </div>
+    </section>
+
+    <!-- Future Business Impact Details -->
+    <section class="impact-details-section" *ngIf="futureBusinessImpact() as impact">
+      <div class="section-header">
+        <h3>Anticipated Economic Impact</h3>
+      </div>
+      <div class="impact-grid">
+        <div class="impact-card-detailed">
+          <h4>Impacted Areas</h4>
+          <div class="area-tags">
+            <span class="area-tag" *ngFor="let area of impact.impacted_areas">{{ area }}</span>
+          </div>
+        </div>
+        <div class="impact-card-detailed">
+          <h4>Key Drivers</h4>
+          <ul class="driver-list">
+            <li *ngFor="let driver of impact.key_drivers">
+              <span>{{ driver.name }}</span>
+              <div class="weight-bar">
+                <div class="fill" [style.width.%]="driver.weight * 100"></div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="impact-card-detailed full-width">
+          <h4>Strategic Recommendations</h4>
+          <div class="action-grid">
+            <div class="action-item" *ngFor="let action of impact.recommended_actions">
+              <strong>{{ action.action }}</strong>
+              <p>{{ action.reason }}</p>
+            </div>
           </div>
         </div>
       </div>

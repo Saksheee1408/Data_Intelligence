@@ -13,6 +13,8 @@ export class App {
   title = 'Weak Signal Intelligence';
   internalSignals = signal<any[]>([]);
   externalSignals = signal<any[]>([]);
+  futureBusinessImpact = signal<any>(null);
+  whyChain = signal<any>(null);
   uploading = signal(false);
   loadingExternal = signal(false);
   error = signal<string | null>(null);
@@ -37,6 +39,8 @@ export class App {
       next: (response: any) => {
         this.internalSignals.set(response.internal_signals || []);
         this.externalSignals.set(response.external_signals || []);
+        this.futureBusinessImpact.set(response.future_business_impact || null);
+        this.whyChain.set(response.why_chain || null);
         this.uploading.set(false);
       },
       error: (err: any) => {
@@ -64,8 +68,10 @@ export class App {
   loadAllSignals() {
     this.http.get<any>('http://localhost:8000/signals').subscribe({
       next: (response: any) => {
-        this.internalSignals.set(response.internal || []);
-        this.externalSignals.set(response.external || []);
+        this.internalSignals.set(response.internal_signals || response.internal || []);
+        this.externalSignals.set(response.external_signals || response.external || []);
+        this.futureBusinessImpact.set(response.future_business_impact || response.future_impact || null);
+        this.whyChain.set(response.why_chain || null);
       },
       error: (err: any) => console.error('Failed to load signals', err)
     });
