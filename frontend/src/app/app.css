@@ -450,6 +450,15 @@ header {
   margin-bottom: 4rem;
 }
 
+.impact-details-section .section-header h3 {
+  color: var(--green);
+  text-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.impact-details-section .section-header h3 span {
+  color: var(--green);
+}
+
 .impact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -468,11 +477,12 @@ header {
 }
 
 .impact-card-detailed h4 {
-  color: var(--text-muted);
+  color: var(--green);
   font-size: 0.9rem;
   text-transform: uppercase;
   margin: 0 0 1.5rem 0;
   letter-spacing: 1px;
+  font-weight: 700;
 }
 
 .area-tags {
@@ -483,9 +493,11 @@ header {
 
 .area-tag {
   background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
   padding: 0.5rem 1rem;
   border-radius: 8px;
   font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .driver-list {
@@ -502,6 +514,7 @@ header {
   display: block;
   margin-bottom: 0.4rem;
   font-size: 0.95rem;
+  color: var(--text-main);
 }
 
 .weight-bar {

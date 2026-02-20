@@ -54,23 +54,7 @@
                 </div>
             </div>
 
-            <div class="kpi-card">
-                <p class="kpi-label">Orchestrator Status</p>
-                <div class="kpi-row">
-                    <div>
-                        <h3 class="kpi-value" [class.clr-green]="s.orchestratorStatus === 'Running'"
-                            [class.clr-amber]="s.orchestratorStatus !== 'Running'">
-                            {{ s.orchestratorStatus }}
-                        </h3>
-                    </div>
-                    <span class="material-symbols-outlined status-icon"
-                        [class.clr-green]="s.orchestratorStatus === 'Running'"
-                        [class.clr-amber]="s.orchestratorStatus !== 'Running'"
-                        [class.pulsing]="s.orchestratorStatus === 'Running'">
-                        {{ s.orchestratorStatus === 'Running' ? 'check_circle' : 'hourglass_empty' }}
-                    </span>
-                </div>
-            </div>
+            <!-- Orchestrator Status removed as requested -->
 
             <div class="kpi-card">
                 <p class="kpi-label">System Uptime</p>
