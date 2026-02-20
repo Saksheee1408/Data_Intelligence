@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Impact Analysis Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111722] overflow-y-auto">
+<div class="flex flex-col h-full p-4">
+<div class="flex items-center gap-3 mb-8 px-2">
+<div class="bg-primary rounded-lg p-2 text-white">
+<span class="material-symbols-outlined">analytics</span>
+</div>
+<div>
+<h1 class="text-base font-bold leading-none">Impact Analysis</h1>
+<p class="text-slate-500 dark:text-slate-400 text-xs mt-1">Signal System</p>
+</div>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white font-medium" href="#">
+<span class="material-symbols-outlined fill-1">dashboard</span>
+<span class="text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">settings_input_component</span>
+<span class="text-sm">Signal Configuration</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="text-sm">Alert History</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="text-sm">Logs</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 px-3 py-2">
+<div class="size-8 rounded-full bg-slate-200 dark:bg-slate-700 bg-cover" data-alt="User avatar placeholder" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDfhbWeKNbfuMi6v-A1i0JbqzdH3webVjkafXYYTmckst4z03iEmKpXlVTj2MMZ4uf0QZEMcSqLL_DI8EfoUSpQaQ500m8J0IdH8nvMHwdzjN-jBSjGG_FfJGoWBTz1a4IdbOmK02KgdlV_JWujNv5cEHQDzVImQvHQit-qeuLWPQbrLH9zngbNnz_etUfzS_a6ylroIR_JtHUqyhaPUcRYoivKXvC04VVtp7m5Mi01Wjn7w0f9Xt6sIaIy1Q6QOWV906r6EsggM_j3");'></div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold">Admin User</span>
+<span class="text-[10px] text-slate-500">System Manager</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-y-auto">
+<!-- Header -->
+<header class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-8 py-4 bg-white/50 dark:bg-[#111722]/50 backdrop-blur-md sticky top-0 z-10">
+<div class="flex items-center gap-6">
+<h2 class="text-lg font-bold">Signal Impact Analysis</h2>
+<div class="relative w-72">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary" placeholder="Search signals or alerts..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Content Area -->
+<div class="p-8 max-w-7xl mx-auto w-full">
+<!-- Page Heading -->
+<div class="mb-8">
+<h1 class="text-3xl font-black tracking-tight mb-2">Impact Analysis Dashboard</h1>
+<p class="text-slate-500 dark:text-slate-400">Real-time signal monitoring and AI-driven insights for business critical metrics.</p>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+<div class="bg-white dark:bg-[#111722] border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Total Signals Monitored</p>
+<div class="flex items-end justify-between">
+<h3 class="text-2xl font-bold">1,284</h3>
+<span class="text-emerald-500 text-sm font-bold flex items-center">
+<span class="material-symbols-outlined text-xs">arrow_upward</span> 12%
+                            </span>
+</div>
+</div>
+<div class="bg-white dark:bg-[#111722] border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Active Alerts</p>
+<div class="flex items-end justify-between">
+<h3 class="text-2xl font-bold">24</h3>
+<span class="text-amber-500 text-sm font-bold flex items-center">
+<span class="material-symbols-outlined text-xs">arrow_upward</span> 5%
+                            </span>
+</div>
+</div>
+<div class="bg-white dark:bg-[#111722] border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Orchestrator Status</p>
+<div class="flex items-end justify-between">
+<div>
+<h3 class="text-2xl font-bold text-emerald-500">Running</h3>
+<p class="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-bold">Next sync in 3:45</p>
+</div>
+<span class="material-symbols-outlined text-emerald-500 animate-pulse">check_circle</span>
+</div>
+</div>
+<div class="bg-white dark:bg-[#111722] border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">System Uptime</p>
+<div class="flex items-end justify-between">
+<h3 class="text-2xl font-bold">99.9%</h3>
+<span class="text-emerald-500 text-sm font-bold flex items-center">
+<span class="material-symbols-outlined text-xs">trending_up</span> 0.1%
+                            </span>
+</div>
+</div>
+</div>
+<!-- Alert Summary by Severity -->
+<div class="mb-8">
+<h2 class="text-xl font-bold mb-4">Alert Summary by Severity</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50 rounded-xl p-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-rose-500 rounded-lg text-white">
+<span class="material-symbols-outlined">priority_high</span>
+</div>
+<h4 class="font-bold text-rose-700 dark:text-rose-400">High Severity</h4>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-rose-700 dark:text-rose-400">8</span>
+<span class="text-sm text-rose-600/70 dark:text-rose-400/70">Requires Immediate Action</span>
+</div>
+</div>
+<div class="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 rounded-xl p-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-amber-500 rounded-lg text-white">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<h4 class="font-bold text-amber-700 dark:text-amber-400">Medium Severity</h4>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-amber-700 dark:text-amber-400">12</span>
+<span class="text-sm text-amber-600/70 dark:text-amber-400/70">Monitor Closely</span>
+</div>
+</div>
+<div class="bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-xl p-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-blue-500 rounded-lg text-white">
+<span class="material-symbols-outlined">info</span>
+</div>
+<h4 class="font-bold text-blue-700 dark:text-blue-400">Low Severity</h4>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-black text-blue-700 dark:text-blue-400">4</span>
+<span class="text-sm text-blue-600/70 dark:text-blue-400/70">Routine Notices</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Latest Alerts Table -->
+<div class="bg-white dark:bg-[#111722] border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+<h3 class="font-bold text-lg">Latest Alerts</h3>
+<button class="text-sm text-primary font-bold hover:underline">Download CSV</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
+<th class="px-6 py-4 font-bold">Timestamp</th>
+<th class="px-6 py-4 font-bold">Signal Name</th>
+<th class="px-6 py-4 font-bold">Severity</th>
+<th class="px-6 py-4 font-bold">Impact</th>
+<th class="px-6 py-4 font-bold text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+<tr>
+<td class="px-6 py-4 text-sm">2023-10-24 14:22:15</td>
+<td class="px-6 py-4 font-medium">Revenue Velocity Drop</td>
+<td class="px-6 py-4">
+<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400">HIGH</span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Projected -15% MRR decline in Q4</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">View Explanation</button>
+</td>
+</tr>
+<tr>
+<td class="px-6 py-4 text-sm">2023-10-24 13:45:02</td>
+<td class="px-6 py-4 font-medium">Customer Churn Anomaly</td>
+<td class="px-6 py-4">
+<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">MEDIUM</span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Elevated churn in Enterprise segment</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">View Explanation</button>
+</td>
+</tr>
+<tr>
+<td class="px-6 py-4 text-sm">2023-10-24 11:10:59</td>
+<td class="px-6 py-4 font-medium">AWS Latency Spike</td>
+<td class="px-6 py-4">
+<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400">HIGH</span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Critical delays in us-east-1 region</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">View Explanation</button>
+</td>
+</tr>
+<tr>
+<td class="px-6 py-4 text-sm">2023-10-24 09:05:44</td>
+<td class="px-6 py-4 font-medium">Ad Spend Efficiency</td>
+<td class="px-6 py-4">
+<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">LOW</span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">CPC increased by $0.12 (Social)</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">View Explanation</button>
+</td>
+</tr>
+<tr>
+<td class="px-6 py-4 text-sm">2023-10-23 23:59:12</td>
+<td class="px-6 py-4 font-medium">API Timeout Threshold</td>
+<td class="px-6 py-4">
+<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">MEDIUM</span>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">2% increase in timeout responses</td>
+<td class="px-6 py-4 text-right">
+<button class="bg-primary/10 text-primary px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all">View Explanation</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-between">
+<span class="text-xs text-slate-500">Showing 1-5 of 24 active alerts</span>
+<div class="flex gap-2">
+<button class="p-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="p-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

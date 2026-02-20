@@ -1,16 +1,23 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { DashboardComponent } from './dashboard/dashboard.component';
+import { SidebarComponent } from './sidebar/sidebar.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterOutlet, RouterLink, DashboardComponent, SidebarComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
-export class App {
+export class App implements OnInit {
   title = 'Weak Signal Intelligence';
+  // UI State
+  showConfig = signal(true);
+
   internalSignals = signal<any[]>([]);
   externalSignals = signal<any[]>([]);
   futureBusinessImpact = signal<any>(null);
@@ -19,7 +26,18 @@ export class App {
   loadingExternal = signal(false);
   error = signal<string | null>(null);
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private router: Router) {
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: any) => {
+      this.showConfig.set(event.url !== '/dashboard');
+    });
+  }
+
+  ngOnInit() {
+    this.showConfig.set(this.router.url !== '/dashboard');
+    this.loadAllSignals();
+  }
 
   onFileSelected(event: any) {
     const file: File = event.target.files[0];
@@ -77,7 +95,4 @@ export class App {
     });
   }
 
-  ngOnInit() {
-    this.loadAllSignals();
-  }
 }

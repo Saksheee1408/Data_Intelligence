@@ -1,168 +1,163 @@
-<div class="dashboard-container">
-  <header>
-    <div class="logo">
-      <span class="logo-icon">⚡</span>
-      <h1>Intelligence<span>Sphere</span></h1>
-    </div>
-    <div class="status-badge" [class.active]="!error()">
-      {{ error() ? 'Offline' : 'Live' }}
-    </div>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="hero-content">
-        <h2>Multi-Stream <span>Weak Signal intelligence</span></h2>
-        <p>Combine internal operational patterns with external global sensing to anticipate market shifts.</p>
-
-        <div class="action-dock">
-          <div class="upload-zone smaller" (click)="fileInput.click()">
-            <input #fileInput type="file" (change)="onFileSelected($event)" accept=".csv" hidden>
-            <div class="upload-icon">📁</div>
-            <div class="upload-text">
-              <strong>{{ uploading() ? 'Processing...' : 'Upload Internal CSV' }}</strong>
-            </div>
+<div class="app-shell">
+  <app-sidebar></app-sidebar>
+  <main class="app-main">
+    <!-- Configuration / Main Page Content -->
+    <div class="existing-page-section" *ngIf="showConfig()">
+      <div class="dashboard-container">
+        <header>
+          <div class="logo">
+            <span class="logo-icon">⚡</span>
+            <h1>Intelligence<span>Sphere</span></h1>
           </div>
+          <a routerLink="/dashboard" class="dashboard-link">Dashboard →</a>
+          <div class="status-badge" [class.active]="!error()">
+            {{ error() ? 'Offline' : 'Live' }}
+          </div>
+        </header>
 
-          <button class="sensor-trigger" (click)="triggerExternalSensing()" [disabled]="loadingExternal()">
-            <span class="pulse-icon" *ngIf="!loadingExternal()">📡</span>
-            <span class="loader" *ngIf="loadingExternal()"></span>
-            {{ loadingExternal() ? 'Scanning News...' : 'Scan External Signals' }}
-          </button>
-        </div>
-      </div>
-    </section>
+        <main>
+          <section class="hero">
+            <div class="hero-content">
+              <h2>Multi-Stream <span>Weak Signal intelligence</span></h2>
+              <p>Combine internal operational patterns with external global sensing to anticipate market shifts.</p>
 
-    <!-- Executive Risk Brief -->
-    <section class="hero-impact" *ngIf="futureBusinessImpact() as impact">
-      <div class="risk-brief">
-        <div class="risk-header">
-          <span class="risk-badge" [class.critical]="impact.risk_level === 'CRITICAL'">
-            {{ impact.risk_level }} RISK DETECTED
-          </span>
-          <div class="risk-probability">
-            <strong>{{ impact.probability_percent }}%</strong> Probability
-          </div>
-          <div class="impact-window">
-            Window: <strong>{{ impact.time_to_impact_days.min_days }}-{{ impact.time_to_impact_days.max_days }}
-              Days</strong>
-          </div>
-        </div>
-        <p class="impact-summary">{{ impact.explanation.one_line }}</p>
-      </div>
-    </section>
+              <div class="action-dock">
+                <div class="upload-zone smaller" (click)="fileInput.click()">
+                  <input #fileInput type="file" (change)="onFileSelected($event)" accept=".csv" hidden>
+                  <div class="upload-icon">📁</div>
+                  <div class="upload-text">
+                    <strong>{{ uploading() ? 'Processing...' : 'Upload Internal CSV' }}</strong>
+                  </div>
+                </div>
 
-    <!-- Internal Signals -->
-    <section class="signals-feed" *ngIf="internalSignals()?.length">
-      <div class="section-header">
-        <h3>Internal Signals <span>Historical patterns detected in your data</span></h3>
-        <span class="count">{{ internalSignals()?.length || 0 }} Alerts</span>
-      </div>
-
-      <div class="signals-grid">
-        <div class="signal-card internal" *ngFor="let s of internalSignals()"
-          [class.high-severity]="s.severity >= 0.7 || s.severity === 'High'">
-          <div class="card-header">
-            <span class="severity-tag">{{ (s.severity >= 0.7 || s.severity === 'High') ? 'HIGH' : 'MEDIUM' }}</span>
-            <span class="signal-type">Internal Signal</span>
-          </div>
-          <h4>{{ s.signal }}</h4>
-          <div class="metric-box">
-            <p class="metric-text">Pattern: {{ s.metric }}</p>
-          </div>
-          <div class="card-footer">
-            <span class="strength-label">Severity: {{ s.severity >= 0 ? (s.severity * 100 | number:'1.0-0') : '75'
-              }}%</span>
-            <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- External Signals -->
-    <section class="signals-feed external-feed" *ngIf="externalSignals()?.length">
-      <div class="section-header">
-        <h3>External Sensing <span>Global news & trend detections</span></h3>
-        <span class="count external-count">{{ externalSignals()?.length || 0 }} Signals</span>
-      </div>
-
-      <div class="signals-grid">
-        <div class="signal-card external" *ngFor="let s of externalSignals()"
-          [class.high-severity]="s.severity === 'High' || s.severity >= 0.7">
-          <div class="card-header">
-            <span class="severity-tag">{{ (s.severity === 'High' || s.severity >= 0.7) ? 'HIGH' : 'MEDIUM' }}</span>
-            <span class="signal-type">{{ s.type }}</span>
-          </div>
-          <h4>{{ s.signal }}</h4>
-          <div class="metric-box">
-            <p class="metric-text">{{ s.metric }}</p>
-          </div>
-          <div class="card-footer">
-            <span class="strength-label">Confidence: {{ (s.confidence * 100) | number:'1.0-0' }}%</span>
-            <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Causal Intelligence Summary -->
-    <section class="causal-chain" *ngIf="whyChain() as chain">
-      <div class="section-header">
-        <h3>Causal Intelligence <span>AI-distilled root cause identification</span></h3>
-      </div>
-      <div class="summary-container">
-        <div class="ai-burst">✨</div>
-        <p class="ai-distilled-summary">{{ chain.root_cause_summary }}</p>
-      </div>
-    </section>
-
-    <!-- Future Business Impact Details -->
-    <section class="impact-details-section" *ngIf="futureBusinessImpact() as impact">
-      <div class="section-header">
-        <h3>Anticipated Economic Impact</h3>
-      </div>
-      <div class="impact-grid">
-        <div class="impact-card-detailed">
-          <h4>Impacted Areas</h4>
-          <div class="area-tags">
-            <span class="area-tag" *ngFor="let area of impact.impacted_areas">{{ area }}</span>
-          </div>
-        </div>
-        <div class="impact-card-detailed">
-          <h4>Key Drivers</h4>
-          <ul class="driver-list">
-            <li *ngFor="let driver of impact.key_drivers">
-              <span>{{ driver.name }}</span>
-              <div class="weight-bar">
-                <div class="fill" [style.width.%]="driver.weight * 100"></div>
+                <button class="sensor-trigger" (click)="triggerExternalSensing()" [disabled]="loadingExternal()">
+                  <span class="pulse-icon" *ngIf="!loadingExternal()">📡</span>
+                  <span class="loader" *ngIf="loadingExternal()"></span>
+                  {{ loadingExternal() ? 'Scanning News...' : 'Scan External Signals' }}
+                </button>
               </div>
-            </li>
-          </ul>
-        </div>
-        <div class="impact-card-detailed full-width">
-          <h4>Strategic Recommendations</h4>
-          <div class="action-grid">
-            <div class="action-item" *ngFor="let action of impact.recommended_actions">
-              <strong>{{ action.action }}</strong>
-              <p>{{ action.reason }}</p>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
+          </section>
 
-    <section class="empty-state"
-      *ngIf="internalSignals().length === 0 && externalSignals().length === 0 && !uploading() && !loadingExternal()">
-      <div class="empty-content">
-        <div class="empty-icon">🔍</div>
-        <p>No signals detected. Start by uploading internal data or scanning external news.</p>
-      </div>
-    </section>
 
-    <section class="error-msg" *ngIf="error()">
-      <div class="error-content">
-        <span>⚠️</span> {{ error() }}
+
+          <!-- Internal Signals -->
+          <section class="signals-feed" *ngIf="internalSignals()?.length">
+            <div class="section-header">
+              <h3>Internal Signals <span>Historical patterns detected in your data</span></h3>
+              <span class="count">{{ internalSignals()?.length || 0 }} Alerts</span>
+            </div>
+
+            <div class="signals-grid">
+              <div class="signal-card internal" *ngFor="let s of internalSignals()"
+                [class.high-severity]="s.severity >= 0.7 || s.severity === 'High'">
+                <div class="card-header">
+                  <span class="severity-tag">{{ (s.severity >= 0.7 || s.severity === 'High') ? 'HIGH' : 'MEDIUM'
+                    }}</span>
+                  <span class="signal-type">Internal Signal</span>
+                </div>
+                <h4>{{ s.signal }}</h4>
+                <div class="metric-box">
+                  <p class="metric-text">Pattern: {{ s.metric }}</p>
+                </div>
+                <div class="card-footer">
+                  <span class="strength-label">Severity: {{ s.severity >= 0 ? (s.severity * 100 | number:'1.0-0') : '75'
+                    }}%</span>
+                  <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- External Signals -->
+          <section class="signals-feed external-feed" *ngIf="externalSignals()?.length">
+            <div class="section-header">
+              <h3>External Sensing <span>Global news & trend detections</span></h3>
+              <span class="count external-count">{{ externalSignals()?.length || 0 }} Signals</span>
+            </div>
+
+            <div class="signals-grid">
+              <div class="signal-card external" *ngFor="let s of externalSignals()"
+                [class.high-severity]="s.severity === 'High' || s.severity >= 0.7">
+                <div class="card-header">
+                  <span class="severity-tag">{{ (s.severity === 'High' || s.severity >= 0.7) ? 'HIGH' : 'MEDIUM'
+                    }}</span>
+                  <span class="signal-type">{{ s.type }}</span>
+                </div>
+                <h4>{{ s.signal }}</h4>
+                <div class="metric-box">
+                  <p class="metric-text">{{ s.metric }}</p>
+                </div>
+                <div class="card-footer">
+                  <span class="strength-label">Confidence: {{ (s.confidence * 100) | number:'1.0-0' }}%</span>
+                  <span class="timestamp">{{ s.timestamp | date:'short' }}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Causal Intelligence Summary -->
+          <section class="causal-chain" *ngIf="whyChain() as chain">
+            <div class="section-header">
+              <h3>Causal Intelligence <span>AI-distilled root cause identification</span></h3>
+            </div>
+            <div class="summary-container">
+              <div class="ai-burst">✨</div>
+              <p class="ai-distilled-summary">{{ chain.root_cause_summary }}</p>
+            </div>
+          </section>
+
+          <!-- Future Business Impact Details -->
+          <section class="impact-details-section" *ngIf="futureBusinessImpact() as impact">
+            <div class="section-header">
+              <h3>Anticipated Economic Impact</h3>
+            </div>
+            <div class="impact-grid">
+              <div class="impact-card-detailed">
+                <h4>Impacted Areas</h4>
+                <div class="area-tags">
+                  <span class="area-tag" *ngFor="let area of impact.impacted_areas">{{ area }}</span>
+                </div>
+              </div>
+              <div class="impact-card-detailed">
+                <h4>Key Drivers</h4>
+                <ul class="driver-list">
+                  <li *ngFor="let driver of impact.key_drivers">
+                    <span>{{ driver.name }}</span>
+                    <div class="weight-bar">
+                      <div class="fill" [style.width.%]="driver.weight * 100"></div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="impact-card-detailed full-width">
+                <h4>Strategic Recommendations</h4>
+                <div class="action-grid">
+                  <div class="action-item" *ngFor="let action of impact.recommended_actions">
+                    <strong>{{ action.action }}</strong>
+                    <p>{{ action.reason }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="empty-state"
+            *ngIf="internalSignals().length === 0 && externalSignals().length === 0 && !uploading() && !loadingExternal()">
+            <div class="empty-content">
+              <div class="empty-icon">🔍</div>
+              <p>No signals detected. Start by uploading internal data or scanning external news.</p>
+            </div>
+          </section>
+
+          <section class="error-msg" *ngIf="error()">
+            <div class="error-content">
+              <span>⚠️</span> {{ error() }}
+            </div>
+          </section>
+        </main>
       </div>
-    </section>
+    </div>
+    <router-outlet></router-outlet>
   </main>
 </div>

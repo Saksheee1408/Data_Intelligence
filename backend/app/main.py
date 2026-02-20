@@ -27,7 +27,17 @@ app.add_middleware(
 )
 
 # Simple global store for demo (replace with DB query in production)
+import models, database, external_sensing, dashboard_router
+
+# ... (rest imports)
+
+# Simple global store for demo (replace with DB query in production)
 last_results = {"internal": [], "external": [], "future_impact": {}}
+
+# Inject shared state into dashboard router
+dashboard_router.data_store = last_results
+
+app.include_router(dashboard_router.router, prefix="/api/dashboard", tags=["dashboard"])
 
 
 @app.get("/")

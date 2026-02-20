@@ -1,0 +1,134 @@
+/* ═══ SIDEBAR ═══ */
+:host {
+    display: block;
+    flex-shrink: 0;
+    /* Defined vars locally to ensure visibility */
+    --muted: #e2e8f0;
+    /* Lighter/White-ish */
+    --dim: #94a3b8;
+    --primary: #135bec;
+    --border: #1e293b;
+    --card: #111722;
+}
+
+.sidebar {
+    width: 256px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--card);
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.sidebar-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 16px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 0 8px;
+}
+
+.brand-icon {
+    background: var(--primary);
+    border-radius: 8px;
+    padding: 8px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.brand-name {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    margin: 0;
+}
+
+.brand-sub {
+    font-size: 12px;
+    color: var(--dim);
+    margin-top: 4px;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #fff;
+}
+
+.nav-link.active {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+.sidebar-user {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+}
+
+.user-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    display: block;
+}
+
+.user-role {
+    font-size: 10px;
+    color: var(--dim);
+    display: block;
+}
+
+/* Responsive Hide for Mobile */
+@media (max-width: 1024px) {
+    .sidebar {
+        display: none;
+    }
+}

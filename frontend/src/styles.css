@@ -1,1 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global layout reset — allows native browser scrolling */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100vh;
+    /* changed from overflow: hidden to auto to allow natural scrolling */
+    overflow-y: auto;
+    overflow-x: hidden;
+    background-color: #0a0b10;
+    /* Ensure bg color matches main theme */
+}
+
+app-root {
+    display: block;
+    width: 100%;
+    min-height: 100vh;
+}

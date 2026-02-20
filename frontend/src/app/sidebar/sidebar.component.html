@@ -1,0 +1,46 @@
+<aside class="sidebar">
+    <div class="sidebar-inner">
+        <!-- Brand -->
+        <div class="brand">
+            <div class="brand-icon">
+                <span class="material-symbols-outlined">analytics</span>
+            </div>
+            <div>
+                <h1 class="brand-name">Impact Analysis</h1>
+                <p class="brand-sub">Signal System</p>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="nav">
+            <a class="nav-link" routerLink="/dashboard" routerLinkActive="active"
+                [routerLinkActiveOptions]="{exact: true}">
+                <span class="material-symbols-outlined fill-1">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+            <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+                <span class="material-symbols-outlined">settings_input_component</span>
+                <span>Signal Configuration</span>
+            </a>
+            <a class="nav-link">
+                <span class="material-symbols-outlined">history</span>
+                <span>Alert History</span>
+            </a>
+            <a class="nav-link">
+                <span class="material-symbols-outlined">description</span>
+                <span>Logs</span>
+            </a>
+        </nav>
+
+        <!-- User -->
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <span class="material-symbols-outlined">person</span>
+            </div>
+            <div class="user-info">
+                <span class="user-name">Admin User</span>
+                <span class="user-role">System Manager</span>
+            </div>
+        </div>
+    </div>
+</aside>

@@ -1,0 +1,239 @@
+<!-- Sticky Header -->
+<header class="top-bar">
+    <div class="top-left">
+        <h2 class="top-title">Signal Impact Analysis</h2>
+        <div class="search-box">
+            <span class="material-symbols-outlined search-ico">search</span>
+            <input type="text" placeholder="Search alerts..." class="search-input" [value]="searchTerm()"
+                (input)="searchTerm.set($any($event.target).value)" />
+        </div>
+    </div>
+    <div class="top-right">
+        <button class="act-btn scan" (click)="refreshDashboard()">
+            <span class="material-symbols-outlined" [class.spinning]="loading()">refresh</span>
+            <span>Refresh</span>
+        </button>
+        <button class="ico-btn">
+            <span class="material-symbols-outlined">notifications</span>
+        </button>
+        <button class="ico-btn">
+            <span class="material-symbols-outlined">help_outline</span>
+        </button>
+    </div>
+</header>
+
+<!-- Scrollable Content -->
+<div class="scroll-area">
+    <div class="content">
+
+        <!-- Page Heading -->
+        <div class="page-head">
+            <h1 class="page-title">Executive Dashboard</h1>
+            <p class="page-sub">Real-time signal monitoring and AI-driven insights.</p>
+        </div>
+
+        <!-- ── Stats Grid (4 KPI Cards) ── -->
+        <div class="kpi-grid" *ngIf="summary() as s">
+            <div class="kpi-card">
+                <p class="kpi-label">Total Signals Monitored</p>
+                <div class="kpi-row">
+                    <h3 class="kpi-value">{{ s.totalSignalsMonitored }}</h3>
+                    <span class="kpi-trend up" *ngIf="s.totalSignalsMonitored > 0">
+                        <span class="material-symbols-outlined tiny">arrow_upward</span> Live
+                    </span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <p class="kpi-label">Active Alerts</p>
+                <div class="kpi-row">
+                    <h3 class="kpi-value">{{ s.activeAlerts }}</h3>
+                    <span class="kpi-trend warn" *ngIf="s.activeAlerts > 0">
+                        <span class="material-symbols-outlined tiny">warning</span> Action Req.
+                    </span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <p class="kpi-label">Orchestrator Status</p>
+                <div class="kpi-row">
+                    <div>
+                        <h3 class="kpi-value" [class.clr-green]="s.orchestratorStatus === 'Running'"
+                            [class.clr-amber]="s.orchestratorStatus !== 'Running'">
+                            {{ s.orchestratorStatus }}
+                        </h3>
+                    </div>
+                    <span class="material-symbols-outlined status-icon"
+                        [class.clr-green]="s.orchestratorStatus === 'Running'"
+                        [class.clr-amber]="s.orchestratorStatus !== 'Running'"
+                        [class.pulsing]="s.orchestratorStatus === 'Running'">
+                        {{ s.orchestratorStatus === 'Running' ? 'check_circle' : 'hourglass_empty' }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <p class="kpi-label">System Uptime</p>
+                <div class="kpi-row">
+                    <h3 class="kpi-value">{{ formatUptime(s.systemUptimeSeconds) }}</h3>
+                    <span class="kpi-trend neutral">
+                        <span class="material-symbols-outlined tiny">schedule</span> Stable
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Risk Brief ── -->
+        <section class="hero-impact" *ngIf="summary().futureImpact?.explanation">
+            <div class="risk-brief">
+                <div class="risk-header">
+                    <span class="risk-badge" [class.critical]="summary().futureImpact.risk_level === 'CRITICAL'">
+                        {{ summary().futureImpact.risk_level }} RISK DETECTED
+                    </span>
+                    <div class="risk-probability">
+                        <strong>{{ summary().futureImpact.probability_percent }}%</strong> Probability
+                    </div>
+                    <div class="impact-window">
+                        Window: <strong>{{ summary().futureImpact.time_to_impact_days?.min_days }}-{{
+                            summary().futureImpact.time_to_impact_days?.max_days }} Days</strong>
+                    </div>
+                </div>
+                <p class="impact-summary">{{ summary().futureImpact.explanation.one_line }}</p>
+            </div>
+        </section>
+
+        <!-- ── Alert Summary by Severity ── -->
+        <div class="block" *ngIf="severity() as sev">
+            <h2 class="block-title">Alert Summary by Severity</h2>
+            <div class="sev-grid">
+                <div class="sev-card high">
+                    <div class="sev-top">
+                        <div class="sev-icon high"><span class="material-symbols-outlined">priority_high</span></div>
+                        <h4 class="sev-name high">High Severity</h4>
+                    </div>
+                    <div class="sev-bottom">
+                        <span class="sev-num high">{{ sev.high }}</span>
+                        <span class="sev-desc">Requires Immediate Action</span>
+                    </div>
+                </div>
+                <div class="sev-card medium">
+                    <div class="sev-top">
+                        <div class="sev-icon medium"><span class="material-symbols-outlined">warning</span></div>
+                        <h4 class="sev-name medium">Medium Severity</h4>
+                    </div>
+                    <div class="sev-bottom">
+                        <span class="sev-num medium">{{ sev.medium }}</span>
+                        <span class="sev-desc">Monitor Closely</span>
+                    </div>
+                </div>
+                <div class="sev-card low">
+                    <div class="sev-top">
+                        <div class="sev-icon low"><span class="material-symbols-outlined">info</span></div>
+                        <h4 class="sev-name low">Low Severity</h4>
+                    </div>
+                    <div class="sev-bottom">
+                        <span class="sev-num low">{{ sev.low }}</span>
+                        <span class="sev-desc">Routine Notices</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Latest Alerts Table ── -->
+        <div class="tbl-card">
+            <div class="tbl-head">
+                <h3 class="tbl-title">Latest Alerts</h3>
+                <button class="csv-btn">Download CSV</button>
+            </div>
+            <div class="tbl-scroll">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Signal Name</th>
+                            <th>Severity</th>
+                            <th>Impact</th>
+                            <th class="r">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let s of filteredAlerts">
+                            <td class="c-time">{{ s.timestamp | date:'yyyy-MM-dd HH:mm' }}</td>
+                            <td class="c-name">{{ s.signalName }}</td>
+                            <td>
+                                <span class="pill" [class.pill-high]="s.severity >= 0.7 || s.severity === 'High'"
+                                    [class.pill-med]="(s.severity >= 0.4 && s.severity < 0.7) || s.severity === 'Medium'"
+                                    [class.pill-low]="s.severity < 0.4 || s.severity === 'Low'">
+                                    {{ s.severity >= 0.7 || s.severity === 'High' ? 'HIGH' : (s.severity >= 0.4 ||
+                                    s.severity === 'Medium' ? 'MEDIUM' : 'LOW') }}
+                                </span>
+                            </td>
+                            <td class="c-impact">{{ s.impactSummary }}</td>
+                            <td class="r">
+                                <button class="view-btn" (click)="viewExplanation(s)">View Explanation</button>
+                            </td>
+                        </tr>
+                        <tr *ngIf="alerts().length === 0">
+                            <td colspan="5" class="empty">
+                                <span class="material-symbols-outlined empty-ico">inbox</span>
+                                <span>No alerts found.</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="tbl-foot" *ngIf="alerts().length > 0">
+                <span>Showing recent alerts</span>
+                <div class="pager">
+                    <button class="pg-btn"><span class="material-symbols-outlined">chevron_left</span></button>
+                    <button class="pg-btn"><span class="material-symbols-outlined">chevron_right</span></button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ═══════════ MODAL ═══════════ -->
+<div class="modal-overlay" *ngIf="showModal()" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>Alert Explanation</h3>
+            <button class="close-btn" (click)="closeModal()"><span
+                    class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="modal-body" *ngIf="selectedAlert() as alert">
+            <div class="modal-section">
+                <h4><span class="material-symbols-outlined">analytics</span> Signal Details</h4>
+                <div class="detail-row">
+                    <strong>Name:</strong> <span>{{ alert.signalName }}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>Severity:</strong> <span>{{ alert.severity }}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>Impact:</strong> <span>{{ alert.impactSummary }}</span>
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h4><span class="material-symbols-outlined">psychology</span> Why this happened?</h4>
+                <p class="why-text">Root cause analysis indicates a potential correlation with supply chain disruptions.
+                </p>
+                <p class="why-sub">AI Confidence: High</p>
+            </div>
+
+            <div class="modal-section">
+                <h4><span class="material-symbols-outlined">checklist</span> Recommended Actions</h4>
+                <ul class="action-list">
+                    <!-- Placeholder actions -->
+                    <li>Review supplier agreements immediately.</li>
+                    <li>Trigger secondary inventory check.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="act-btn" (click)="closeModal()">Close</button>
+        </div>
+    </div>
+</div>
