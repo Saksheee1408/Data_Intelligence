@@ -52,123 +52,101 @@ async def upload_internal_data(file: UploadFile = File(...), db: Session = Depen
     contents = await file.read()
     df = pd.read_csv(io.BytesIO(contents))
     
-    # Dataset Detection
-    jewellery_cols = ['date', 'sales_inr', 'gold_stock_gm', 'supplier_delay_days', 'advance_bookings']
-    ev_cols = ['date', 'production_units', 'battery_stock_units', 'supplier_lead_time_days', 'battery_cost_per_unit']
-    
-    dataset_type = None
-    if all(col in df.columns for col in jewellery_cols):
-        dataset_type = "jewellery"
-    elif all(col in df.columns for col in ev_cols):
-        dataset_type = "ev"
-    else:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Unsupported CSV schema. Detected columns: {list(df.columns)}"
-        )
+    # --- Phase 1: Dynamic Dataset Identification (AI) ---
+    import ai_engine
+    try:
+        dataset_info = ai_engine.detect_dataset_type(df)
+        dataset_type = dataset_info.industry
+        print(f"[Phase 1] Detected industry: {dataset_type} | Metrics: {dataset_info.key_metrics}")
+    except Exception as e:
+        print(f"[Phase 1] AI Detection failed: {e}")
+        numeric_cols = df.select_dtypes(include='number').columns.tolist()
+        dataset_type = "General"
+        dataset_info = ai_engine.DatasetInfo(industry=dataset_type, description="Uploaded dataset", key_metrics=numeric_cols)
 
     # Process Data
-    df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values('date')
-    latest_timestamp = df['date'].iloc[-1].isoformat()
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date')
+    latest_timestamp = df['date'].iloc[-1].isoformat() if 'date' in df.columns else datetime.datetime.now().isoformat()
 
-    internal_signals = []
+    # --- Phase 2: Dynamic Internal Signal Extraction (AI) ---
+    try:
+        ai_signals = ai_engine.extract_internal_signals(df, dataset_info)
+        internal_signals = [s.model_dump() for s in ai_signals]
+        print(f"[Phase 2] AI extracted {len(internal_signals)} internal signals")
+    except Exception as e:
+        print(f"[Phase 2] AI Internal Extraction failed: {e} — using SignalEngine fallback")
+        from signal_engine import SignalEngine
+        cols = {
+            'inventory_column': next((c for c in df.columns if any(k in c.lower() for k in ['stock', 'inv', 'inventory', 'tons', 'units', 'kg'])), None),
+            'demand_column': next((c for c in df.columns if any(k in c.lower() for k in ['sales', 'demand', 'bookings', 'sold', 'cups'])), None),
+            'delay_column': next((c for c in df.columns if any(k in c.lower() for k in ['delay', 'lead', 'late', 'supplier', 'hours'])), None),
+            'inventory_label': dataset_info.description,
+            'material_name': dataset_type
+        }
+        engine = SignalEngine(df, cols)
+        engine_signals, _ = engine.analyze_internal_signals()
+        internal_signals = []
+        for s in engine_signals:
+            sev_str = s.get('severity', 'Low')
+            sev_num = 0.9 if sev_str == 'Critical' else 0.75 if sev_str == 'High' else 0.55 if sev_str == 'Medium' else 0.35
+            internal_signals.append({
+                "signal": s.get('signal'),
+                "metric": s.get('metric'),
+                "strength": "weak",
+                "severity": sev_num,
+                "timestamp": latest_timestamp,
+                "type": "Internal"
+            })
+        print(f"[Phase 2] SignalEngine fallback found {len(internal_signals)} signals")
 
-    if dataset_type == "jewellery":
-        # Internal Jewellery Logic (last 3 rows)
-        if len(df) >= 3:
-            last3 = df.tail(3)
-            # a) Stock decreasing
-            stocks = last3['gold_stock_gm'].tolist()
-            if stocks[0] > stocks[1] > stocks[2]:
-                internal_signals.append({
-                    "signal": "Gold stock is continuously decreasing",
-                    "metric": "gold_stock_gm",
-                    "strength": "weak",
-                    "severity": 0.70,
-                    "timestamp": latest_timestamp,
-                    "type": "Internal"
-                })
-            # b) Supplier delay increasing
-            delays = last3['supplier_delay_days'].tolist()
-            if delays[2] - delays[0] >= 1:
-                internal_signals.append({
-                    "signal": "Supplier delivery delay is increasing",
-                    "metric": "supplier_delay_days",
-                    "strength": "weak",
-                    "severity": 0.65,
-                    "timestamp": latest_timestamp,
-                    "type": "Internal"
-                })
-            # c) Advance bookings rising
-            bookings = last3['advance_bookings'].tolist()
-            if bookings[2] > bookings[1] > bookings[0]:
-                internal_signals.append({
-                    "signal": "Advance bookings are rising",
-                    "metric": "advance_bookings",
-                    "strength": "weak",
-                    "severity": 0.60,
-                    "timestamp": latest_timestamp,
-                    "type": "Internal"
-                })
+    print(f"[Phase 2] Total internal signals: {len(internal_signals)}")
+    # --- Phase 3: Dynamic External Sensing (AI topics + RSS news) ---
+    try:
+        dynamic_topics = ai_engine.get_external_search_topics(dataset_info)
+        print(f"[Phase 3] AI-generated topics: {dynamic_topics}")
+    except Exception as e:
+        print(f"[Phase 3] AI Topic Generation failed: {e}")
+        # Smart keyword fallback from dataset column names
+        dynamic_topics = [f"{dataset_type} supply chain", f"{dataset_type} market trends", f"{dataset_info.key_metrics[0] if dataset_info.key_metrics else dataset_type} price"]
+        print(f"[Phase 3] Using keyword fallback topics: {dynamic_topics}")
 
-    elif dataset_type == "ev":
-        # Internal EV Logic (last 3 rows)
-        if len(df) >= 3:
-            last3 = df.tail(3)
-            # a) Battery stock decreasing
-            stocks = last3['battery_stock_units'].tolist()
-            if stocks[0] > stocks[1] > stocks[2]:
-                internal_signals.append({
-                    "signal": "Battery stock is continuously decreasing",
-                    "metric": "battery_stock_units",
-                    "strength": "weak",
-                    "severity": 0.70,
-                    "timestamp": latest_timestamp,
-                    "type": "Internal"
-                })
-            # b) Supplier lead time increasing
-            leads = last3['supplier_lead_time_days'].tolist()
-            if leads[2] - leads[0] >= 1:
-                internal_signals.append({
-                    "signal": "Supplier lead time is increasing",
-                    "metric": "supplier_lead_time_days",
-                    "strength": "weak",
-                    "severity": 0.65,
-                    "timestamp": latest_timestamp,
-                    "type": "Internal"
-                })
-            # c) Production rising but stock falling
-            prod = last3['production_units'].tolist()
-            if prod[2] > prod[0] and stocks[2] < stocks[0]:
-                internal_signals.append({
-                    "signal": "Production pressure rising while stock is falling",
-                    "metric": "production_units+battery_stock_units",
-                    "strength": "weak",
-                    "severity": 0.75,
-                    "timestamp": latest_timestamp,
-                    "type": "Internal"
-                })
+    external_signals = external_sensing.fetch_external_signals(
+        db,
+        industry=dataset_type,
+        df_context=df,
+        dynamic_topics=dynamic_topics
+    )
+    print(f"[Phase 3] Fetched {len(external_signals)} external signals")
 
-    # Multi-Source External Extraction
-    external_signals = external_sensing.fetch_external_signals(db, industry=dataset_type, df_context=df)
-
-    # --- Intelligence Engine Phase ---
+    # --- Phase 4: Intelligence Engine Phase (AI-Driven) ---
     builder = EvidenceBuilder(df)
     evidence = builder.build_evidence(internal_signals, external_signals)
     
-    why_gen = WhyChainGenerator(evidence)
-    why_chain = why_gen.generate_10_why_chain()
-    
-    impact_eng = ImpactEngine()
-    future_business_impact = impact_eng.compute_future_impact(evidence, why_chain)
+    try:
+        why_chain_obj = ai_engine.generate_dynamic_why_chain(evidence, industry=dataset_type)
+        why_chain = why_chain_obj.model_dump()
+        print(f"[Phase 4] Why chain generated: {why_chain_obj.root_cause_summary[:80]}")
+        impact_obj = ai_engine.compute_dynamic_impact(evidence, why_chain_obj, industry=dataset_type)
+        future_business_impact = impact_obj.model_dump()
+        print(f"[Phase 4] Impact computed: {impact_obj.risk_level} risk, {impact_obj.probability_percent}% probability")
+    except Exception as e:
+        import traceback
+        print(f"[Phase 4] AI Intelligence Engine failed: {e}")
+        traceback.print_exc()
+        why_gen = WhyChainGenerator(evidence)
+        why_chain = why_gen.generate_10_why_chain()
+        impact_eng = ImpactEngine()
+        future_business_impact = impact_eng.compute_future_impact(evidence, why_chain)
 
     # Maintain existing response keys + Add new ones
     response_data = {
         "dataset_type": dataset_type,
+        "dataset_description": dataset_info.description,
         "internal_signals": internal_signals,
         "external_signals": external_signals,
-        "future_impact": future_business_impact, # existing key mapping to new engine
+        "future_impact": future_business_impact, 
         "why_chain": why_chain,
         "future_business_impact": future_business_impact
     }
@@ -189,21 +167,31 @@ async def get_signals(db: Session = Depends(database.get_db)):
 @app.post("/trigger/external")
 async def trigger_external_sensing(industry: str = "Jewellery", db: Session = Depends(database.get_db)):
     """Manual trigger to scan real-time news and macro sources"""
-    news_signals = external_sensing.fetch_external_signals(db, industry=industry)
+    import ai_engine
     
-    # Run intelligence engine even with zero internal signals
-    # We pass an empty DF or one from the last successful upload if available
-    # For now, we'll try to use a dummy or empty DF if no context exists
+    # Create dummy dataset info for manual trigger
+    dummy_info = ai_engine.DatasetInfo(industry=industry, description="Manual trigger", key_metrics=[])
+    try:
+        dynamic_topics = ai_engine.get_external_search_topics(dummy_info)
+    except:
+        dynamic_topics = None
+
+    news_signals = external_sensing.fetch_external_signals(db, industry=industry, dynamic_topics=dynamic_topics)
+    
     df_dummy = pd.DataFrame(columns=['date']) 
-    
     builder = EvidenceBuilder(df_dummy)
     evidence = builder.build_evidence([], news_signals)
     
-    why_gen = WhyChainGenerator(evidence)
-    why_chain = why_gen.generate_10_why_chain()
-    
-    impact_eng = ImpactEngine()
-    future_business_impact = impact_eng.compute_future_impact(evidence, why_chain)
+    try:
+        why_chain_obj = ai_engine.generate_dynamic_why_chain(evidence)
+        why_chain = why_chain_obj.model_dump()
+        impact_obj = ai_engine.compute_dynamic_impact(evidence, why_chain_obj)
+        future_business_impact = impact_obj.model_dump()
+    except:
+        why_gen = WhyChainGenerator(evidence)
+        why_chain = why_gen.generate_10_why_chain()
+        impact_eng = ImpactEngine()
+        future_business_impact = impact_eng.compute_future_impact(evidence, why_chain)
 
     last_results["external"] = news_signals
     last_results["future_impact"] = future_business_impact

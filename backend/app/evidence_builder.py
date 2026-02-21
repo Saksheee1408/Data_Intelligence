@@ -6,7 +6,10 @@ from typing import List, Dict, Any
 class EvidenceBuilder:
     def __init__(self, df: pd.DataFrame):
         self.df = df
-        self.latest_timestamp = df['date'].iloc[-1] if 'date' in df.columns else datetime.datetime.now()
+        if 'date' in df.columns and not df.empty:
+            self.latest_timestamp = df['date'].iloc[-1]
+        else:
+            self.latest_timestamp = datetime.datetime.now()
 
     def build_evidence(self, internal_signals: List[Dict], external_signals: List[Dict]) -> Dict:
         # Enrich internal signals with stats from DF if not present

@@ -8,3 +8,5 @@ requests
 beautifulsoup4
 feedparser
 textblob
+google-genai
+python-dotenv

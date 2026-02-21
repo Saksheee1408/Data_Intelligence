@@ -11,7 +11,7 @@ import datetime
 import urllib.parse
 import pandas as pd
 
-def fetch_external_signals(db: Session, industry: str = "Jewellery", df_context: pd.DataFrame = None):
+def fetch_external_signals(db: Session, industry: str = "Jewellery", df_context: pd.DataFrame = None, dynamic_topics: list = None):
     """
     Multi-Source External Signal Extraction:
     Source 1: Google News RSS (Real-world events)
@@ -22,12 +22,11 @@ def fetch_external_signals(db: Session, industry: str = "Jewellery", df_context:
     all_signals = []
 
     # --- SOURCE 1 & 3: Real-Time News & Sentiment ---
-    topics = {
-        "Jewellery": ["Gold Price", "Jewellery Market", "Bullion Demand"],
-        "ev": ["Battery Raw Materials", "EV Charging Infrastructure", "Lithium Price"]
-    }
-    
-    active_topics = topics.get(industry, topics["Jewellery"])
+    if dynamic_topics:
+        active_topics = dynamic_topics
+    else:
+        # No hardcoded fallback - skip news if no AI topics provided
+        active_topics = []
     
     for topic in active_topics:
         encoded_topic = urllib.parse.quote(topic)

@@ -39,9 +39,9 @@ class SignalEngine:
             trend = self._calculate_trend(series)
             
             # Dynamic Rule: Continuous Depletion
-            if trend < -0.02: # >2% drop trend
+            if trend < -0.005: # >0.5% drop trend (Weak Signal)
                 signals.append({
-                    "signal": f"Rapid depletion in {self.config.get('inventory_label', 'Inventory')}",
+                    "signal": f"Subtle depletion trend in {self.config.get('inventory_label', 'Inventory')}",
                     "metric": inv_col,
                     "severity": "High" if trend < -0.05 else "Medium",
                     "type": "Internal / Efficiency",
