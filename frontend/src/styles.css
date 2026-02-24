@@ -10,12 +10,9 @@ body {
     margin: 0;
     padding: 0;
     width: 100%;
-    min-height: 100vh;
-    /* changed from overflow: hidden to auto to allow natural scrolling */
-    overflow-y: auto;
-    overflow-x: hidden;
+    height: 100vh;
+    overflow: hidden;
     background-color: #0a0b10;
-    /* Ensure bg color matches main theme */
 }
 
 app-root {
